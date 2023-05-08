@@ -44,13 +44,53 @@ def vessels_top(df):
                                             'SHIP VALUE': lambda x: x.mean(numeric_only=True),
                                              'CARGO VALUE': lambda x: x.mean(numeric_only=True),
                                              'VESSEL TYPE': lambda x: x.count()})
-
-    # Get the top 5 most common vessel types
+# top 5 most common vessel types
     top_5_vessels = df['VESSEL TYPE'].value_counts().head(5).index.tolist()
-
-    # Filter the data to include only the top 5 vessel types
     filtered_data = grouped.loc[top_5_vessels]
     return filtered_data
+def generate_pie_chart(vessel_type):
+    selected_data = data[data['VESSEL TYPE'] == vessel_type]
+# how much of what cargo each vessel type carries
+    cargo_counts = selected_data['NATURE OF CARGO'].value_counts()
+    fig = px.pie(cargo_counts, values=cargo_counts.values, names=cargo_counts.index)
+    st.plotly_chart(fig)
+
+
+def display_ships_by_location_and_material(data):
+    location_counts = data['WHERE BUILT'].value_counts()
+    construction_counts = data['CONSTRUCTION'].value_counts()
+
+    main_locations = data.groupby('CONSTRUCTION')['WHERE BUILT'].apply(
+        lambda x: x.value_counts().idxmax() if not pd.isnull(x).all() else 'unknown')
+
+    main_location_counts = data['WHERE BUILT'].value_counts()
+    main_location_counts = main_location_counts.sort_values(ascending=False)
+    top_10_locations = main_location_counts.head(10).index
+    top_10_data = data[data['WHERE BUILT'].isin(top_10_locations)]
+
+    grouped_data = top_10_data.groupby(['WHERE BUILT', 'CONSTRUCTION']).size().unstack()
+
+    colors = ['sandybrown', 'yellow', 'darkred', 'red', 'brown']
+    fig, ax = plt.subplots(figsize=(10, 6))
+    grouped_data.plot(kind='bar', stacked=True, color=colors, ax=ax)
+
+    plt.xlabel('Location')
+    plt.ylabel('Number of Ships')
+    plt.title('Number of Ships Produced by Location and Material')
+    plt.gca().set_facecolor('black')
+    plt.xticks(color='black')
+    plt.yticks(color='black')
+    plt.title('Number of Ships Produced by Location and Material', color='black')
+    plt.xlabel('Location', color='black')
+    plt.ylabel('Number of Ships', color='black')
+    legend = plt.legend(title='Construction Material', facecolor='black', edgecolor='white')
+    plt.setp(legend.get_title(), color='white')
+    for text in legend.get_texts():
+        plt.setp(text, color='white')
+
+    st.pyplot(fig)
+
+
 # 1
 with tab1:
     st.header('Relationship between Cause of Loss and Construction')
@@ -93,7 +133,7 @@ with tab2:
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax1.legend(lines + lines2, labels + labels2)
 
-    plt.show()
+    st.pyplot(fig)
 # 3
 with tab3:
     data['LATITUDE_BACKUP'] = pd.to_numeric(data['LATITUDE_BACKUP'], errors='coerce')
@@ -139,39 +179,10 @@ with tab3:
 
 # 4
 with tab4:
-    location_counts = data['WHERE BUILT'].value_counts()
 
-    construction_counts = data['CONSTRUCTION'].value_counts()
-# finds highest frequency used material and locations where most ships were produced
-    main_locations = data.groupby('CONSTRUCTION')['WHERE BUILT'].apply(
-        lambda x: x.value_counts().idxmax() if not pd.isnull(x).all() else 'unknown')
-# find the number of ships produced in locations and sort them
-    main_location_counts = data['WHERE BUILT'].value_counts()
-    main_location_counts = main_location_counts.sort_values(ascending=False)
-    top_10_locations = main_location_counts.head(10).index
-    top_10_data = data[data['WHERE BUILT'].isin(top_10_locations)]
-# group by location and material
-    grouped_data_4 = top_10_data.groupby(['WHERE BUILT', 'CONSTRUCTION']).size().unstack()
 
-    colors = ['sandybrown', 'yellow', 'darkred', 'red', 'brown']
-    plt.figure(figsize=(10, 6))
-    grouped_data_4.plot(kind='bar', stacked=True, color=colors)
 
-    plt.xlabel('Location')
-    plt.ylabel('Number of Ships')
-    plt.title('Number of Ships Produced by Location and Material')
-    plt.gca().set_facecolor('black')
-    plt.xticks(color='black')
-    plt.yticks(color='black')
-    plt.title('Number of Ships Produced by Location and Material', color='black')
-    plt.xlabel('Location', color='black')
-    plt.ylabel('Number of Ships', color='black')
-    legend = plt.legend(title='Construction Material', facecolor='black', edgecolor='white')
-    plt.setp(legend.get_title(), color='white')
-    for text in legend.get_texts():
-        plt.setp(text, color='white')
-    plt.show()
-
+    display_ships_by_location_and_material(data)
 # 5
 with tab5:
     filtered_data_5 = data.dropna(subset=['NATURE OF CARGO'])
@@ -186,15 +197,6 @@ with tab5:
 
     st.title("Cargo carried per vessel types.")
     vessel_select = st.selectbox("Select Vessel Type:", options=top_5_vessel_types)
-
-
-    def generate_pie_chart(vessel_type):
-        selected_data = data[data['VESSEL TYPE'] == vessel_type]
-# how much of what cargo each vessel type carries
-        cargo_counts = selected_data['NATURE OF CARGO'].value_counts()
-        fig = px.pie(cargo_counts, values=cargo_counts.values, names=cargo_counts.index)
-        st.plotly_chart(fig)
-
 
 # react to the selection of user
     if vessel_select:
